@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Математические задачи{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="display-5">
+                    <span class="text-primary">∑</span> Математические задачи
+                </h1>
+                <p class="text-muted lead">
+                    Выберите задачу, введите данные — получите результат и график
+                </p>
+            </div>
+            <a href="{% url 'history' %}" class="btn btn-outline-secondary">
+                📊 История вычислений
+            </a>
+        </div>
+    </div>
+</div>
+
+{# ============ Статистика сверху ============ #}
+{% if user.is_authenticated %}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-primary h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Всего вычислений</h6>
+                        <h3 class="mb-0">{{ total_calculations|default:0 }}</h3>
+                    </div>
+                    <div class="fs-1 text-primary">🧮</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Успешных</h6>
+                        <h3 class="mb-0 text-success">{{ successful_calculations|default:0 }}</h3>
+                    </div>
+                    <div class="fs-1 text-success">✅</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Последнее</h6>
+                        <h6 class="mb-0">
+                            {% if last_calculation %}
+                                {{ last_calculation.task_type.name }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </h6>
+                        {% if last_calculation %}
+                            <small class="text-muted">
+                                {{ last_calculation.created_at|date:"d.m.Y H:i" }}
+                            </small>
+                        {% endif %}
+                    </div>
+                    <div class="fs-1 text-info">🕐</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ============ Фильтры и поиск ============ #}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="input-group">
+            <span class="input-group-text">🔍</span>
+            <input 
+                type="text" 
+                id="searchInput" 
+                class="form-control" 
+                placeholder="Поиск задачи по названию или описанию..."
+                autocomplete="off"
+            >
+            <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                Очистить
+            </button>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <select class="form-select" id="categoryFilter">
+            <option value="">Все категории</option>
+            {% for category in categories %}
+                <option value="{{ category.slug }}">{{ category.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{# ============ Список задач ============ #}
+{% if tasks %}
+<div class="row g-4" id="tasksGrid">
+    {% for task in tasks %}
+    <div class="col-md-6 col-lg-4 task-card" 
+         data-name="{{ task.name|lower }}" 
+         data-description="{{ task.description|lower }}"
+         data-category="{{ task.category.slug|default:'' }}">
+        <div class="card h-100 shadow-sm task-item">
+            {# Заголовок с иконкой #}
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fs-3">{{ task.icon|default:"📐" }}</span>
+                    <h5 class="mb-0">{{ task.name }}</h5>
+                </div>
+                <span class="badge bg-{{ task.difficulty_color|default:'secondary' }}">
+                    {{ task.get_difficulty_display|default:"★" }}
+                </span>
+            </div>
+            
+            <div class="card-body">
+                {# Формула #}
+                {% if task.formula %}
+                <div class="formula-box mb-3">
+                    <code class="text-primary fs-6">{{ task.formula }}</code>
+                </div>
+                {% endif %}
+                
+                {# Описание #}
+                <p class="card-text text-muted small">
+                    {{ task.description|truncatewords:20 }}
+                </p>
+                
+                {# Теги #}
+                {% if task.tags %}
+                <div class="mb-3">
+                    {% for tag in task.tags %}
+                        <span class="badge bg-light text-dark border me-1">#{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {# Мета-информация #}
+                <div class="d-flex justify-content-between text-muted small border-top pt-2">
+                    <span title="Количество полей для ввода">
+                        📝 {{ task.input_schema|length }} пол.
+                    </span>
+                    <span title="Сложность вычислений">
+                        ⚡ {{ task.get_complexity_display|default:"O(1)" }}
+                    </span>
+                    {% if task.usage_count %}
+                    <span title="Сколько раз использовалась">
+                        👥 {{ task.usage_count }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card-footer bg-white border-top-0 d-flex gap-2">
+                <a href="{% url 'task_detail' task.slug %}" 
+                   class="btn btn-primary flex-grow-1">
+                    🚀 Запустить
+                </a>
+                {% if task.documentation_url %}
+                <a href="{{ task.documentation_url }}" 
+                   target="_blank"
+                   class="btn btn-outline-secondary"
+                   title="Документация">
+                    📖
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{# ============ Сообщение "ничего не найдено" #}
+<div id="noResults" class="text-center py-5 d-none">
+    <div class="display-1 text-muted">🔍</div>
+    <h3 class="text-muted mt-3">Ничего не найдено</h3>
+    <p class="text-muted">Попробуйте изменить поисковый запрос или фильтр</p>
+    <button class="btn btn-outline-primary" onclick="resetFilters()">
+        Сбросить фильтры
+    </button>
+</div>
+
+{% else %}
+{# ============ Пустое состояние ============ #}
+<div class="text-center py-5">
+    <div class="display-1 text-muted">📭</div>
+    <h3 class="text-muted mt-3">Задачи ещё не добавлены</h3>
+    <p class="text-muted">
+        Преподаватель пока не добавил ни одной задачи.<br>
+        Загляните позже!
+    </p>
+    {% if user.is_staff %}
+        <a href="/admin/tasks/tasktype/add/" class="btn btn-primary mt-3">
+            ➕ Добавить задачу в админке
+        </a>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ============ Подсказка для студентов ============ #}
+<div class="alert alert-info mt-5" role="alert">
+    <h6 class="alert-heading">💡 Как это работает?</h6>
+    <ol class="mb-0 small">
+        <li>Выберите задачу из списка выше.</li>
+        <li>Введите данные в форму (коэффициенты, матрицы, выборку и т.д.).</li>
+        <li>Нажмите «Вычислить» — получите результат и график.</li>
+        <li>Все вычисления сохраняются в <a href="{% url 'history' %}">истории</a>.</li>
+    </ol>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .task-item {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid #e9ecef;
+    }
+    .task-item:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+        border-color: #0d6efd;
+    }
+    
+    .formula-box {
+        background: #f8f9fa;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border-left: 3px solid #0d6efd;
+        font-family: 'Courier New', monospace;
+        overflow-x: auto;
+    }
+    
+    .task-card.hidden {
+        display: none !important;
+    }
+    
+    .card-header h5 {
+        font-size: 1.05rem;
+    }
+    
+    /* Адаптив для мобильных */
+    @media (max-width: 768px) {
+        .display-5 {
+            font-size: 1.8rem;
+        }
+        .fs-1 {
+            font-size: 1.8rem !important;
+        }
+        .card-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ============ Поиск и фильтрация на клиенте ============
+    const searchInput = document.getElementById('searchInput');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const clearSearchBtn = document.getElementById('clearSearch');
+    const taskCards = document.querySelectorAll('.task-card');
+    const noResults = document.getElementById('noResults');
+    
+    function filterTasks() {
+        const query = searchInput.value.toLowerCase().trim();
+        const category = categoryFilter.value;
+        let visibleCount = 0;
+        
+        taskCards.forEach(card => {
+            const name = card.dataset.name || '';
+            const description = card.dataset.description || '';
+            const cardCategory = card.dataset.category || '';
+            
+            const matchesSearch = !query || 
+                name.includes(query) || 
+                description.includes(query);
+            const matchesCategory = !category || cardCategory === category;
+            
+            if (matchesSearch && matchesCategory) {
+                card.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+        
+        // Показываем сообщение "ничего не найдено"
+        if (visibleCount === 0) {
+            noResults.classList.remove('d-none');
+        } else {
+            noResults.classList.add('d-none');
+        }
+    }
+    
+    // Debounce для поиска (чтобы не фильтровать на каждое нажатие)
+    let debounceTimer;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(filterTasks, 200);
+    });
+    
+    categoryFilter.addEventListener('change', filterTasks);
+    
+    clearSearchBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        categoryFilter.value = '';
+        filterTasks();
+    });
+    
+    // Сброс фильтров (для кнопки в "ничего не найдено")
+    function resetFilters() {
+        searchInput.value = '';
+        categoryFilter.value = '';
+        filterTasks();
+    }
+    
+    // ============ Горячие клавиши ============
+    // Ctrl+K — фокус на поиск (как в VS Code / GitHub)
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            searchInput.focus();
+        }
+        // Escape — очистить поиск
+        if (e.key === 'Escape' && document.activeElement === searchInput) {
+            searchInput.value = '';
+            filterTasks();
+            searchInput.blur();
+        }
+    });
+    
+    // ============ Анимация появления карточек ============
+    document.addEventListener('DOMContentLoaded', () => {
+        taskCards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 50);  // Каскадное появление
+        });
+    });
+</script>
+{% endblock %}
