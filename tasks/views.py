@@ -21,6 +21,10 @@ def task_list(request):
 def task_detail(request,  slug=None):
     task_type = get_object_or_404(TaskType, slug=slug, is_active=True)
 
+    result = None
+    plot_url = None
+    form_data = {}
+
     if request.method == 'POST':
         try:
             computation = factory.get(slug)
