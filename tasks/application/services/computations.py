@@ -21,9 +21,7 @@ class QuadraticComputation(Computation):
         start_time = time.time()
         result: ResultDict = {}
 
-        roots = {}
         solve_type = QuadraticTypeEnum.COMPLEX_ROOT
-        message = "Комплексные корни"
 
         D = b**2-4*a*c
 
@@ -40,6 +38,7 @@ class QuadraticComputation(Computation):
         else:
             real = -b / (2*a)
             imag = -D**0.5/(2*a)
+            result['message'] = 'Комплексные корни'
             result['roots'] [f"{real}+{imag}i", f"{real}-{imag}i"]
 
         result = {

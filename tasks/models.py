@@ -23,6 +23,8 @@ class Calculation(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='calculations',
+        null=True,
+        blank=True,
     )
 
     task_type = models.ForeignKey(
@@ -51,4 +53,7 @@ class Calculation(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.task_type.name} - {self.user.username} ({self.created_at:%d/%m/%Y})"
+        if self.user.username and self.created_at:
+            return f"{self.task_type.name} - {self.user.username} ({self.created_at:%d/%m/%Y})"
+        else:
+            return self.task_type.name
