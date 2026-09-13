@@ -1,11 +1,11 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from .models import TaskType, Calculation
 from django.http import JsonResponse
-import json
 
-from .services.computations import factory
-
+from .application.services.computations import factory
+from .application.services.parser import parse_form
+from .application.domain.input_schema import InputSchema
 
 
 # @login_required
@@ -18,14 +18,24 @@ def task_list(request):
     # return JsonResponse({'tasks':"data"})
     
 def task_detail(request,  slug=None):
-    task = TaskType.objects.filter(is_active=True, slug=slug).get()
+    task_type = get_object_or_404(TaskType, slug=slug, is_active=True)
 
-    # request_data = request.POST
+    if request.method == 'POST':
+        computation = factory.get(slug)
 
-    # print(task.input_schema)
+        if not computation:
+            raise ValueError(f"Калькулятор с {slug} не найден")
 
-    # computation = factory.get(slug)
+        inputs: dict[str, InputSchema] = parse_form(task_type, request.POST)
 
-    # print(request_data)
+        print(inputs)
+        # print(task.input_schema)
+        # print(request_data)
 
-    return render(request, 'tasks/detail.html', {'task_type': task})
+
+        print('task_detail')
+
+        # return
+    # else:
+    return render(request, 'tasks/detail.html', {'task_type': task_type})
+
